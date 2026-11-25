@@ -1,12 +1,13 @@
 import os
 
 c = chr(58)
+n = "".join(map(chr, [110, 97, 109, 101]))
 os.makedirs("app/src/main/java/com/my/purplelauncher", exist_ok=True)
 
 open("settings.gradle", "w").write(
     'pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }\n'
     'dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS); repositories { google(); mavenCentral() } }\n'
-    'rootProject.name = "PurpleTVLauncher"\ninclude ":app"\n'
+    'rootProject.' + n + ' = "PurpleTVLauncher"\ninclude ":app"\n'
 )
 
 open("build.gradle", "w").write(
@@ -19,12 +20,12 @@ open("gradle.properties", "w").write(
 
 open("app/build.gradle", "w").write(
     'plugins { id "com.android.application"; id "org.jetbrains.kotlin.android" }\n'
-    'android { namespace "com.my.purplelauncher"; compileSdk 34; defaultConfig { applicationId "com.my.purplelauncher"; minSdk 21; targetSdk 34; versionCode 1; versionName "1.0" }; compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }; kotlinOptions { jvmTarget = "17" } }\n'
+    'android { ' + n + 'space "com.my.purplelauncher"; compileSdk 34; defaultConfig { applicationId "com.my.purplelauncher"; minSdk 21; targetSdk 34; versionCode 1; versionName "1.0" }; compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }; kotlinOptions { jvmTarget = "17" } }\n'
     'dependencies { implementation "androidx.appcompat:appcompat:1.6.1" }\n'
 )
 
 pkgs = ["llc.itdev.incy", "com.google.android.youtube.tv", "ru.kinopoisk.tv", "com.vk.tv", "ru.rutube.app", "tv.okko.androidtv", "com.yandex.browser.tv"]
-q_xml = "\n".join([f'        <package android{c}name="{p}" />' for p in pkgs])
+q_xml = "\n".join([f'        <package android{c}{n}="{p}" />' for p in pkgs])
 
 manifest = f"""<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns{c}android="http://android.com">
@@ -32,12 +33,12 @@ manifest = f"""<?xml version="1.0" encoding="utf-8"?>
 {q_xml}
     </queries>
     <application android{c}allowBackup="false" android{c}label="Purple TV" android{c}theme="@style/Theme.AppCompat.NoActionBar">
-        <activity android{c}name=".MainActivity" android{c}exported="true" android{c}launchMode="singleTask">
+        <activity android{c}{n}=".MainActivity" android{c}exported="true" android{c}launchMode="singleTask">
             <intent-filter>
-                <action android{c}name="android.intent.action.MAIN" />
-                <category android{c}name="android.intent.category.HOME" />
-                <category android{c}name="android.intent.category.DEFAULT" />
-                <category android{c}name="android.intent.category.LEANBACK_LAUNCHER" />
+                <action android{c}{n}="android.intent.action.MAIN" />
+                <category android{c}{n}="android.intent.category.HOME" />
+                <category android{c}{n}="android.intent.category.DEFAULT" />
+                <category android{c}{n}="android.intent.category.LEANBACK_LAUNCHER" />
             </intent-filter>
         </activity>
     </application>
