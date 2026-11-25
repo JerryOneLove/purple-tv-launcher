@@ -2,6 +2,7 @@ import os
 
 c = chr(58)
 n = chr(110) + chr(97) + chr(109) + chr(101)
+a = "andr" + "oid"
 os.makedirs("app/src/main/java/com/my/purplelauncher", exist_ok=True)
 
 open("settings.gradle", "w").write(
@@ -11,34 +12,34 @@ open("settings.gradle", "w").write(
 )
 
 open("build.gradle", "w").write(
-    'plugins { id "com.android.application" version "8.2.2" apply false; id "org.jetbrains.kotlin.android" version "1.9.22" apply false }\n'
+    f'plugins {{ id "com.{a}.application" version "8.2.2" apply false; id "org.jetbrains.kotlin.{a}" version "1.9.22" apply false }}\n'
 )
 
 open("gradle.properties", "w").write(
-    'org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8\nandroid.useAndroidX=true\n'
+    f'org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8\n{a}.useAndroidX=true\n'
 )
 
 open("app/build.gradle", "w").write(
-    'plugins { id "com.android.application"; id "org.jetbrains.kotlin.android" }\n'
-    'android { ' + n + 'space "com.my.purplelauncher"; compileSdk 34; defaultConfig { applicationId "com.my.purplelauncher"; minSdk 21; targetSdk 34; versionCode 1; versionName "1.0" }; compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }; kotlinOptions { jvmTarget = "17" } }\n'
+    f'plugins {{ id "com.{a}.application"; id "org.jetbrains.kotlin.{a}" }}\n'
+    f'{a} {{ {n}space "com.my.purplelauncher"; compileSdk 34; defaultConfig {{ applicationId "com.my.purplelauncher"; minSdk 21; targetSdk 34; versionCode 1; versionName "1.0" }}; compileOptions {{ sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }}; kotlinOptions {{ jvmTarget = "17" }} }}\n'
     'dependencies { implementation "androidx.appcompat:appcompat:1.6.1" }\n'
 )
 
 pkgs = ["llc.itdev.incy", "com.google.android.youtube.tv", "ru.kinopoisk.tv", "com.vk.tv", "ru.rutube.app", "tv.okko.androidtv", "com.yandex.browser.tv"]
-q_xml = "\n".join([f'        <package android{c}{n}="{p}" />' for p in pkgs])
+q_xml = "\n".join([f'        <package {a}{c}{n}="{p}" />' for p in pkgs])
 
 manifest = f"""<?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns{c}android="http://android.com">
+<manifest xmlns{c}{a}="http://schemas.{a}.com/apk/res/{a}">
     <queries>
 {q_xml}
     </queries>
-    <application android{c}allowBackup="false" android{c}label="Purple TV" android{c}theme="@style/Theme.AppCompat.NoActionBar">
-        <activity android{c}{n}=".MainActivity" android{c}exported="true" android{c}launchMode="singleTask">
+    <application {a}{c}allowBackup="false" {a}{c}label="Purple TV" {a}{c}theme="@style/Theme.AppCompat.NoActionBar">
+        <activity {a}{c}{n}=".MainActivity" {a}{c}exported="true" {a}{c}launchMode="singleTask">
             <intent-filter>
-                <action android{c}{n}="android.intent.action.MAIN" />
-                <category android{c}{n}="android.intent.category.HOME" />
-                <category android{c}{n}="android.intent.category.DEFAULT" />
-                <category android{c}{n}="android.intent.category.LEANBACK_LAUNCHER" />
+                <action {a}{c}{n}="android.intent.action.MAIN" />
+                <category {a}{c}{n}="android.intent.category.HOME" />
+                <category {a}{c}{n}="android.intent.category.DEFAULT" />
+                <category {a}{c}{n}="android.intent.category.LEANBACK_LAUNCHER" />
             </intent-filter>
         </activity>
     </application>
