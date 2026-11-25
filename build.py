@@ -274,7 +274,7 @@ firstTile.post {{ firstTile.requestFocus() }}
 }}
 private fun hideOrRemoveSlot(slot: AppSlot) {{
 if (slot.isCustom) {{
-val current = (prefs.getString("custom_pkgs", "") ?: "").split("|").filter {{ it.isNotEmpty() && it != slot.packages }}
+val current = (prefs.getString("custom_pkgs", "") ?: "").split("|").filter {{ it.isNotEmpty() && it != slot.packages.first() }}
 prefs.edit().putString("custom_pkgs", current.joinToString("|")).apply()
 }} else {{
 val hidden = HashSet{lt}String{gt}(prefs.getStringSet("hidden_titles", emptySet()) ?: emptySet())
