@@ -23,7 +23,7 @@ open("gradle.properties", "w").write(
 
 open("app/build.gradle", "w").write(
     f'plugins {{ id "com.{a}.application"; id "org.jetbrains.kotlin.{a}" }}\n'
-    f'{a} {{ {n}space "com.my.purplelauncher"; compileSdk 34; defaultConfig {{ applicationId "com.my.purplelauncher"; minSdk 21; targetSdk 34; versionCode 3; versionName "3.0" }}; compileOptions {{ sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }}; kotlinOptions {{ jvmTarget = "17" }} }}\n'
+    f'{a} {{ {n}space "com.my.purplelauncher"; compileSdk 34; defaultConfig {{ applicationId "com.my.purplelauncher"; minSdk 21; targetSdk 34; versionCode 4; versionName "4.0" }}; compileOptions {{ sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }}; kotlinOptions {{ jvmTarget = "17" }} }}\n'
     'dependencies { implementation "androidx.appcompat:appcompat:1.6.1" }\n'
 )
 
@@ -66,6 +66,7 @@ kt = f"""package com.my.purplelauncher
 
 import android.Manifest
 import android.app.AlertDialog
+import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
@@ -105,9 +106,12 @@ class MainActivity : AppCompatActivity() {{
 
     private lateinit var uiOverlay: RelativeLayout
     private lateinit var bgView: ImageView
+    private lateinit var dock: LinearLayout
     private val idleHandler = Handler(Looper.getMainLooper())
     private var isScreensaver = false
     private val idleTimeoutMs = 20L * 60L * 1000L
+
+    private val prefs by lazy {{ getSharedPreferences("purple_tv_prefs", Context.MODE_PRIVATE) }}
 
     private val silverFilter by lazy {{
         val cm = ColorMatrix().apply {{ setSaturation(0.08f) }}
@@ -138,9 +142,9 @@ class MainActivity : AppCompatActivity() {{
         uiOverlay.animate().alpha(0f).setDuration(800).start()
     }}
 
-    data class AppSlot(val title: String, val packages: Array{lt}String{gt})
+    data class AppSlot(val title: String, val packages: Array{lt}String{gt}, val isCustom: Boolean = false)
 
-    private val mainApps = arrayOf(
+    private val defaultSlots = arrayOf(
         AppSlot("YouTube", arrayOf("com.google.android.youtube.tv")),
         AppSlot("Кинопоиск", arrayOf("ru.kinopoisk.tv")),
         AppSlot("VK Видео", arrayOf("com.vk.tv")),
@@ -210,20 +214,12 @@ class MainActivity : AppCompatActivity() {{
             }}
         }}
 
-        val dock = LinearLayout(this).apply {{
+        dock = LinearLayout(this).apply {{
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_HORIZONTAL
         }}
 
-        var firstTile: View? = null
-        for (slot in mainApps) {{
-            val tile = createAppTile(slot)
-            if (firstTile == null) firstTile = tile
-            dock.addView(tile)
-        }}
-
-        val allAppsTile = createSpecialTile("Все") {{ showAllAppsDialog() }}
-        dock.addView(allAppsTile)
+        rebuildDock()
 
         bottomScroll.addView(dock)
         uiOverlay.addView(bottomScroll)
@@ -237,25 +233,93 @@ class MainActivity : AppCompatActivity() {{
             }}
         }}
 
-        firstTile?.post {{ firstTile.requestFocus() }}
         resetIdleTimer()
     }}
 
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array{lt}out String{gt}, grantResults: IntArray) {{
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        loadWallpaper(bgView)
-    }}
-
-    private fun loadWallpaper(iv: ImageView) {{
-        val candidates = arrayOf(
-            File("/sdcard/Download/bg.png"),
-            File("/sdcard/Download/bg.jpg"),
-            File("/storage/emulated/0/Download/bg.png"),
-            File("/storage/emulated/0/Download/bg.jpg")
-        )
-        for (f in candidates) {{
-            if (f.exists() && f.canRead()) {{
-                val bmp = BitmapFactory.decodeFile(f.absolutePath)
+    private fun getActiveSlots(): ArrayList{lt}AppSlot{gt} {{
+        val hidden = prefs.getStringSet("hidden_titles", emptySet()) ?: emptySet()
+        val customPkgs = prefs.getString("custom_pkgs", "") ?: ""
+        val result = ArrayList{lt}AppSlot{gt}()
+        for (slot in defaultSlots) {{
+            if (!hidden.contains(slot.title)) {{
+                result.add(slot)
+            }}
+        }}
+        if (customPkgs.isNotEmpty()) {{
+            for (pkg in customPkgs.split("|")) {{
+                if (pkg.isNotEmpty() && isInstalled(pkg)) {{
+                    val label = try {{
+                        packageManager.getApplicationLabel(packageManager.getApplicationInfo(pkg, 0)).toString()
+                    }} catch (e: Exception) {{ pkg }}
+                    result.add(AppSlot(label, arrayOf(pkg), true))
+                }}
+}}
+}}
+return result
+}}
+private fun rebuildDock() {{
+dock.removeAllViews()
+var firstTile: View? = null
+for (slot in getActiveSlots()) {{
+val tile = createAppTile(slot)
+if (firstTile == null) firstTile = tile
+dock.addView(tile)
+}}
+val allAppsTile = createSpecialTile("Все") {{ showAllAppsDialog() }}
+if (firstTile == null) firstTile = allAppsTile
+dock.addView(allAppsTile)
+firstTile.post {{ firstTile.requestFocus() }}
+}}
+private fun hideOrRemoveSlot(slot: AppSlot) {{
+if (slot.isCustom) {{
+val current = (prefs.getString("custom_pkgs", "") ?: "").split("|").filter {{ it.isNotEmpty() && it != slot.packages[0] }}
+prefs.edit().putString("custom_pkgs", current.joinToString("|")).apply()
+}} else {{
+val hidden = HashSet{lt}String{gt}(prefs.getStringSet("hidden_titles", emptySet()) ?: emptySet())
+hidden.add(slot.title)
+prefs.edit().putStringSet("hidden_titles", hidden).apply()
+}}
+rebuildDock()
+Toast.makeText(this, "Убрано с главного экрана", Toast.LENGTH_SHORT).show()
+}}
+private fun addCustomApp(pkg: String) {{
+for (slot in defaultSlots) {{
+if (slot.packages.contains(pkg)) {{
+val hidden = HashSet{lt}String{gt}(prefs.getStringSet("hidden_titles", emptySet()) ?: emptySet())
+if (hidden.remove(slot.title)) {{
+prefs.edit().putStringSet("hidden_titles", hidden).apply()
+rebuildDock()
+Toast.makeText(this, "Возвращено на главный экран", Toast.LENGTH_SHORT).show()
+}} else {{
+Toast.makeText(this, "Уже есть на главном экране", Toast.LENGTH_SHORT).show()
+}}
+return
+}}
+}}
+val current = ArrayList{lt}String{gt}((prefs.getString("custom_pkgs", "") ?: "").split("|").filter {{ it.isNotEmpty() }})
+if (!current.contains(pkg)) {{
+current.add(pkg)
+prefs.edit().putString("custom_pkgs", current.joinToString("|")).apply()
+rebuildDock()
+Toast.makeText(this, "Добавлено на главный экран", Toast.LENGTH_SHORT).show()
+}} else {{
+Toast.makeText(this, "Уже есть на главном экране", Toast.LENGTH_SHORT).show()
+}}
+}}
+override fun onRequestPermissionsResult(requestCode: Int, permissions: Array{lt}out String{gt}, grantResults: IntArray) {{
+super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+loadWallpaper(bgView)
+}}
+private fun loadWallpaper(iv: ImageView) {{
+val candidates = arrayOf(
+File("/sdcard/Download/bg.png"),
+File("/sdcard/Download/bg.jpg"),
+File("/storage/emulated/0/Download/bg.png"),
+File("/storage/emulated/0/Download/bg.jpg")
+)
+for (f in candidates) {{
+if (f.exists() && f.canRead()) {{
+val bmp = BitmapFactory.decodeFile(f.absolutePath)
 if (bmp != null) {{
 iv.setImageDrawable(BitmapDrawable(resources, bmp))
 return
@@ -291,6 +355,7 @@ val box = LinearLayout(this).apply {{
 orientation = LinearLayout.VERTICAL
 gravity = Gravity.CENTER
 isFocusable = true
+isLongClickable = true
 setPadding(12, 12, 12, 10)
 layoutParams = LinearLayout.LayoutParams(156, 132).apply {{ setMargins(10, 6, 10, 6) }}
 background = tileBg(false)
@@ -329,6 +394,15 @@ titleView.setTextColor(if (f) textLight else textSilver)
 v.animate().scaleX(if (f) 1.10f else 1f).scaleY(if (f) 1.10f else 1f).setDuration(120).start()
 }}
 box.setOnClickListener {{ launchFirstFound(slot.packages) }}
+box.setOnLongClickListener {{
+AlertDialog.Builder(this)
+.setTitle(slot.title)
+.setItems(arrayOf("Открыть", "Убрать с главного экрана")) {{ _, which -{gt}
+if (which == 0) launchFirstFound(slot.packages) else hideOrRemoveSlot(slot)
+}}
+.show()
+true
+}}
 return box
 }}
 private fun createSpecialTile(label: String, onClick: () -{gt} Unit): LinearLayout {{
@@ -397,18 +471,37 @@ private fun showAllAppsDialog() {{
 val rawList = packageManager.getInstalledApplications(0)
 val launchable = ArrayList{lt}ApplicationInfo{gt}()
 for (info in rawList) {{
-if (packageManager.getLeanbackLaunchIntentForPackage(info.packageName) != null ||
-packageManager.getLaunchIntentForPackage(info.packageName) != null) {{
+if (info.packageName != packageName &&
+(packageManager.getLeanbackLaunchIntentForPackage(info.packageName) != null ||
+packageManager.getLaunchIntentForPackage(info.packageName) != null)) {{
 launchable.add(info)
 }}
 }}
 launchable.sortWith(Comparator {{ o1, o2 -{gt}
 packageManager.getApplicationLabel(o1).toString().compareTo(packageManager.getApplicationLabel(o2).toString())
 }})
-val names = Array(launchable.size) {{ idx -{gt} packageManager.getApplicationLabel(launchable[idx]).toString() }}
+val names = Array(launchable.size + 1) {{ idx -{gt}
+if (idx == launchable.size) "↺ Вернуть стандартный список" else packageManager.getApplicationLabel(launchable[idx]).toString()
+}}
 AlertDialog.Builder(this)
-.setTitle("Все приложения")
-.setItems(names) {{ _, idx -{gt} launchFirstFound(arrayOf(launchable[idx].packageName)) }}
+.setTitle("Все приложения (нажмите для выбора)")
+.setItems(names) {{ _, idx -{gt}
+if (idx == launchable.size) {{
+prefs.edit().clear().apply()
+rebuildDock()
+Toast.makeText(this, "Список сброшен", Toast.LENGTH_SHORT).show()
+}} else {{
+val chosen = launchable[idx]
+val appName = packageManager.getApplicationLabel(chosen).toString()
+AlertDialog.Builder(this)
+.setTitle(appName)
+.setItems(arrayOf("Запустить", "Добавить на главный экран")) {{ _, actionIdx -{gt}
+if (actionIdx == 0) launchFirstFound(arrayOf(chosen.packageName))
+else addCustomApp(chosen.packageName)
+}}
+.show()
+}}
+}}
 .show()
 }}
 private fun resetIdleTimer() {{
