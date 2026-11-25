@@ -251,6 +251,7 @@ jobs:
                       setStroke(if (focused) 5 else 2, if (focused || isAccent) accentPurple else Color.parseColor("#3F3D4D"))
                   }
               }
+
               private fun launchPkg(pkg: String) {
                   val intent = packageManager.getLeanbackLaunchIntentForPackage(pkg)
                       ?: packageManager.getLaunchIntentForPackage(pkg)
@@ -267,7 +268,7 @@ jobs:
           EOF
 
       - name: Build Debug APK
-        run: gradle assembleDebug --stacktrace
+        run: gradle assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
