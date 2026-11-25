@@ -136,16 +136,16 @@ class MainActivity : AppCompatActivity() {
         uiOverlay.animate().alpha(0f).setDuration(800).start()
     }
 
-    data class AppSlot(val title: String, val packages: List<String>)
+    data class AppSlot(val title: String, val packages: Array<String>)
 
-    private val mainApps = listOf(
-        AppSlot("YouTube", listOf("com.google.android.youtube.tv")),
-        AppSlot("Кинопоиск", listOf("ru.kinopoisk.tv")),
-        AppSlot("VK Видео", listOf("com.vk.tv")),
-        AppSlot("Wink", listOf("ru.rt.video.app.tv", "ru.wink.androidtv", "ru.rt.wink")),
-        AppSlot("Rutube", listOf("ru.rutube.app")),
-        AppSlot("Okko", listOf("tv.okko.androidtv")),
-        AppSlot("Браузер", listOf("com.yandex.browser.tv"))
+    private val mainApps = arrayOf(
+        AppSlot("YouTube", arrayOf("com.google.android.youtube.tv")),
+        AppSlot("Кинопоиск", arrayOf("ru.kinopoisk.tv")),
+        AppSlot("VK Видео", arrayOf("com.vk.tv")),
+        AppSlot("Wink", arrayOf("ru.rt.video.app.tv", "ru.wink.androidtv", "ru.rt.wink")),
+        AppSlot("Rutube", arrayOf("ru.rutube.app")),
+        AppSlot("Okko", arrayOf("tv.okko.androidtv")),
+        AppSlot("Браузер", arrayOf("com.yandex.browser.tv"))
     )
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -185,7 +185,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        val vpnBtn = createRoundBtn("VPN", true) { launchFirstFound(listOf("llc.itdev.incy")) }
+        val vpnBtn = createRoundBtn("VPN", true) { launchFirstFound(arrayOf("llc.itdev.incy")) }
         val wifiBtn = createRoundBtn("Wi-Fi", false) { openSettingsSafe(Settings.ACTION_WIFI_SETTINGS) }
         val cfgBtn = createRoundBtn("⚙", false) { openSettingsSafe(Settings.ACTION_SETTINGS) }
         val sleepBtn = createRoundBtn("☾", false) {
@@ -245,7 +245,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun loadWallpaper(iv: ImageView) {
-        val candidates = listOf(
+        val candidates = arrayOf(
             File("/sdcard/Download/bg.png"),
             File("/sdcard/Download/bg.jpg"),
             File("/storage/emulated/0/Download/bg.png"),
@@ -256,10 +256,10 @@ class MainActivity : AppCompatActivity() {
                 val bmp = BitmapFactory.decodeFile(f.absolutePath)
                 if (bmp != null) {
                     iv.setImageDrawable(BitmapDrawable(resources, bmp))
-return
-}
-}
-}
+                    return
+                }
+            }
+        }
 iv.setImageDrawable(GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(Color.parseColor("#181326"), Color.parseColor("#2E1D47"))))
 }
 private fun createRoundBtn(label: String, accent: Boolean, onClick: () -> Unit): TextView {
@@ -374,7 +374,7 @@ true
 false
 }
 }
-private fun launchFirstFound(pkgs: List) {
+private fun launchFirstFound(pkgs: Array) {
 for (p in pkgs) {
 val intent = packageManager.getLeanbackLaunchIntentForPackage(p) ?: packageManager.getLaunchIntentForPackage(p)
 if (intent != null) {
@@ -392,19 +392,21 @@ startActivity(Intent(Settings.ACTION_SETTINGS))
 }
 }
 private fun showAllAppsDialog() {
-val rawList: List = packageManager.getInstalledApplications(0)
-val launchable = ArrayList()
+val rawList = packageManager.getInstalledApplications(0)
+val launchable = mutableListOf()
 for (info in rawList) {
 if (packageManager.getLeanbackLaunchIntentForPackage(info.packageName) != null ||
 packageManager.getLaunchIntentForPackage(info.packageName) != null) {
 launchable.add(info)
 }
 }
-launchable.sortBy { packageManager.getApplicationLabel(it).toString() }
+launchable.sortWith(Comparator { o1, o2 ->
+packageManager.getApplicationLabel(o1).toString().compareTo(packageManager.getApplicationLabel(o2).toString())
+})
 val names = Array(launchable.size) { idx -> packageManager.getApplicationLabel(launchable[idx]).toString() }
 AlertDialog.Builder(this)
 .setTitle("Все приложения")
-.setItems(names) { _, idx -> launchFirstFound(listOf(launchable[idx].packageName)) }
+.setItems(names) { _, idx -> launchFirstFound(arrayOf(launchable[idx].packageName)) }
 .show()
 }
 private fun resetIdleTimer() {
