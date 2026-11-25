@@ -27,38 +27,36 @@ jobs:
           rm -rf app settings.gradle build.gradle gradle.properties
           mkdir -p app/src/main/java/com/my/purplelauncher
           python3 - << 'PYEOF'
-          import xml.etree.ElementTree as ET
-
           open("settings.gradle", "w").write('pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }\ndependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS); repositories { google(); mavenCentral() } }\nrootProject.name = "PurpleTVLauncher"\ninclude ":app"\n')
           open("build.gradle", "w").write('plugins { id "com.android.application" version "8.2.2" apply false; id "org.jetbrains.kotlin.android" version "1.9.22" apply false }\n')
           open("gradle.properties", "w").write('org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8\nandroid.useAndroidX=true\n')
           open("app/build.gradle", "w").write('plugins { id "com.android.application"; id "org.jetbrains.kotlin.android" }\nandroid { namespace "com.my.purplelauncher"; compileSdk 34; defaultConfig { applicationId "com.my.purplelauncher"; minSdk 21; targetSdk 34; versionCode 1; versionName "1.0" }; compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }; kotlinOptions { jvmTarget = "17" } }\ndependencies { implementation "androidx.appcompat:appcompat:1.6.1" }\n')
 
-          NS = "http://android.com"
-          ET.register_namespace("android", NS)
-          A = lambda k: f"{{{NS}}}{k}"
-
-          manifest = ET.Element("manifest")
-          queries = ET.SubElement(manifest, "queries")
-          for pkg in ["llc.itdev.incy", "com.google.android.youtube.tv", "ru.kinopoisk.tv", "com.vk.tv", "ru.rutube.app", "tv.okko.androidtv", "com.yandex.browser.tv"]:
-              ET.SubElement(queries, "package", {A("name"): pkg})
-
-          app = ET.SubElement(manifest, "application", {
-              A("allowBackup"): "false",
-              A("label"): "Purple TV",
-              A("theme"): "@style/Theme.AppCompat.NoActionBar"
-          })
-          act = ET.SubElement(app, "activity", {
-              A("name"): ".MainActivity",
-              A("exported"): "true",
-              A("launchMode"): "singleTask"
-          })
-          flt = ET.SubElement(act, "intent-filter")
-          ET.SubElement(flt, "action", {A("name"): "android.intent.action.MAIN"})
-          for cat in ["HOME", "DEFAULT", "LEANBACK_LAUNCHER"]:
-              ET.SubElement(flt, "category", {A("name"): f"android.intent.category.{cat}"})
-
-          ET.ElementTree(manifest).write("app/src/main/AndroidManifest.xml", encoding="utf-8", xml_declaration=True)
+          xml_lines = [
+              '<?xml version="1.0" encoding="utf-8"?>',
+              '<manifest xmlns:android="http://android.com">',
+              '    <queries>',
+              '        <package android:name="llc.itdev.incy" />',
+              '        <package android:name="com.google.android.youtube.tv" />',
+              '        <package android:name="ru.kinopoisk.tv" />',
+              '        <package android:name="com.vk.tv" />',
+              '        <package android:name="ru.rutube.app" />',
+              '        <package android:name="tv.okko.androidtv" />',
+              '        <package android:name="com.yandex.browser.tv" />',
+              '    </queries>',
+              '    <application android:allowBackup="false" android:label="Purple TV" android:theme="@style/Theme.AppCompat.NoActionBar">',
+              '        <activity android:name=".MainActivity" android:exported="true" android:launchMode="singleTask">',
+              '            <intent-filter>',
+              '                <action android:name="android.intent.action.MAIN" />',
+              '                <category android:name="android.intent.category.HOME" />',
+              '                <category android:name="android.intent.category.DEFAULT" />',
+              '                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />',
+              '            </intent-filter>',
+              '        </activity>',
+              '    </application>',
+              '</manifest>'
+          ]
+          open("app/src/main/AndroidManifest.xml", "w").write("\n".join(xml_lines) + "\n")
           PYEOF
 
           cat << 'EOF' > app/src/main/java/com/my/purplelauncher/MainActivity.kt
