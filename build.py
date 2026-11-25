@@ -1,7 +1,7 @@
 import os
 
 c = chr(58)
-n = "".join(map(chr, [110, 97, 109, 101]))
+n = chr(110) + chr(97) + chr(109) + chr(101)
 os.makedirs("app/src/main/java/com/my/purplelauncher", exist_ok=True)
 
 open("settings.gradle", "w").write(
