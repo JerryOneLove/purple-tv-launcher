@@ -22,248 +22,99 @@ jobs:
         with:
           gradle-version: '8.5'
 
-      - name: Generate Project Files
+      - name: Generate Project
         run: |
-          mkdir -p app/src/main/java/com/my/purplelauncher
-          
-          cat << 'EOF' > settings.gradle
-          pluginManagement {
-              repositories {
-                  google()
-                  mavenCentral()
-                  gradlePluginPortal()
-              }
-          }
-          dependencyResolutionManagement {
-              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-              repositories {
-                  google()
-                  mavenCentral()
-              }
-          }
-          rootProject.name = "PurpleTVLauncher"
-          include ':app'
-          EOF
-
-          cat << 'EOF' > build.gradle
-          plugins {
-              id 'com.android.application' version '8.2.2' apply false
-              id 'org.jetbrains.kotlin.android' version '1.9.22' apply false
-          }
-          EOF
-
-          cat << 'EOF' > gradle.properties
-          org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
-          android.useAndroidX=true
-          kotlin.code.style=official
-          EOF
-
-          cat << 'EOF' > app/build.gradle
-          plugins {
-              id 'com.android.application'
-              id 'org.jetbrains.kotlin.android'
-          }
-          android {
-              namespace 'com.my.purplelauncher'
-              compileSdk 34
-              defaultConfig {
-                  applicationId "com.my.purplelauncher"
-                  minSdk 21
-                  targetSdk 34
-                  versionCode 1
-                  versionName "1.0"
-              }
-              compileOptions {
-                  sourceCompatibility JavaVersion.VERSION_17
-                  targetCompatibility JavaVersion.VERSION_17
-              }
-              kotlinOptions {
-                  jvmTarget = '17'
-              }
-          }
-          dependencies {
-              implementation 'androidx.appcompat:appcompat:1.6.1'
-          }
-          EOF
-
-          cat << 'EOF' > app/src/main/AndroidManifest.xml
-          <?xml version="1.0" encoding="utf-8"?>
-          <manifest xmlns:android="http://android.com">
-              <uses-feature android:name="android.software.leanback" android:required="false" />
-              <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+          python3 -c '
+          import os
+          os.makedirs("app/src/main/java/com/my/purplelauncher", exist_ok=True)
+          open("settings.gradle", "w").write("pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }\ndependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS); repositories { google(); mavenCentral() } }\nrootProject.name = \"PurpleTVLauncher\"\ninclude \":app\"\n")
+          open("build.gradle", "w").write("plugins { id \"com.android.application\" version \"8.2.2\" apply false; id \"org.jetbrains.kotlin.android\" version \"1.9.22\" apply false }\n")
+          open("gradle.properties", "w").write("org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8\nandroid.useAndroidX=true\n")
+          open("app/build.gradle", "w").write("plugins { id \"com.android.application\"; id \"org.jetbrains.kotlin.android\" }\nandroid { namespace \"com.my.purplelauncher\"; compileSdk 34; defaultConfig { applicationId \"com.my.purplelauncher\"; minSdk 21; targetSdk 34; versionCode 1; versionName \"1.0\" }; compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }; kotlinOptions { jvmTarget = \"17\" } }\ndependencies { implementation \"androidx.appcompat:appcompat:1.6.1\" }\n")
+          ns = "http://android.com"
+          an = "android:" + "name"
+          al = "android:" + "label"
+          at = "android:" + "theme"
+          ae = "android:" + "exported"
+          manifest = f"""<?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="{ns}">
               <queries>
-                  <package android:name="llc.itdev.incy" />
-                  <package android:name="com.google.android.youtube.tv" />
-                  <package android:name="ru.kinopoisk.tv" />
-                  <package android:name="com.vk.tv" />
-                  <package android:name="ru.rutube.app" />
-                  <package android:name="tv.okko.androidtv" />
-                  <package android:name="com.yandex.browser.tv" />
+                  <package {an}="llc.itdev.incy" />
+                  <package {an}="com.google.android.youtube.tv" />
+                  <package {an}="ru.kinopoisk.tv" />
+                  <package {an}="com.vk.tv" />
+                  <package {an}="ru.rutube.app" />
+                  <package {an}="tv.okko.androidtv" />
+                  <package {an}="com.yandex.browser.tv" />
               </queries>
-              <application
-                  android:allowBackup="false"
-                  android:label="Purple TV"
-                  android:theme="@style/Theme.AppCompat.NoActionBar">
-                  <activity
-                      android:name=".MainActivity"
-                      android:exported="true"
-                      android:launchMode="singleTask"
-                      android:stateNotNeeded="true">
+              <application {al}="Purple TV" {at}="@style/Theme.AppCompat.NoActionBar">
+                  <activity {an}=".MainActivity" {ae}="true" android:launchMode="singleTask">
                       <intent-filter>
-                          <action android:name="android.intent.action.MAIN" />
-                          <category android:name="android.intent.category.HOME" />
-                          <category android:name="android.intent.category.DEFAULT" />
-                          <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+                          <action {an}="android.intent.action.MAIN" />
+                          <category {an}="android.intent.category.HOME" />
+                          <category {an}="android.intent.category.DEFAULT" />
+                          <category {an}="android.intent.category.LEANBACK_LAUNCHER" />
                       </intent-filter>
                   </activity>
               </application>
-          </manifest>
-          EOF
-
+          </manifest>"""
+          open("app/src/main/AndroidManifest.xml", "w").write(manifest)
+          '
           cat << 'EOF' > app/src/main/java/com/my/purplelauncher/MainActivity.kt
           package com.my.purplelauncher
-
           import android.content.Intent
           import android.graphics.Color
           import android.graphics.drawable.GradientDrawable
           import android.os.Bundle
           import android.provider.Settings
           import android.view.Gravity
-          import android.widget.GridLayout
-          import android.widget.LinearLayout
-          import android.widget.TextClock
-          import android.widget.TextView
-          import android.widget.Toast
+          import android.widget.*
           import androidx.appcompat.app.AppCompatActivity
-
           class MainActivity : AppCompatActivity() {
-
               private val bgDark = Color.parseColor("#1C1B22")
               private val cardGray = Color.parseColor("#2B2936")
               private val cardFocused = Color.parseColor("#453E5C")
               private val accentPurple = Color.parseColor("#A799FF")
               private val textMain = Color.parseColor("#EAE6F5")
-
-              data class TvApp(val title: String, val pkg: String)
-
-              private val myApps = listOf(
-                  TvApp("YouTube", "com.google.android.youtube.tv"),
-                  TvApp("Кинопоиск", "ru.kinopoisk.tv"),
-                  TvApp("VK Видео", "com.vk.tv"),
-                  TvApp("Rutube", "ru.rutube.app"),
-                  TvApp("Okko", "tv.okko.androidtv"),
-                  TvApp("Браузер", "com.yandex.browser.tv")
+              private val apps = listOf(
+                  "YouTube" to "com.google.android.youtube.tv",
+                  "Кинопоиск" to "ru.kinopoisk.tv",
+                  "VK Видео" to "com.vk.tv",
+                  "Rutube" to "ru.rutube.app",
+                  "Okko" to "tv.okko.androidtv",
+                  "Браузер" to "com.yandex.browser.tv"
               )
-
-              override fun onCreate(savedInstanceState: Bundle?) {
-                  super.onCreate(savedInstanceState)
-
-                  val root = LinearLayout(this).apply {
-                      orientation = LinearLayout.VERTICAL
-                      setBackgroundColor(bgDark)
-                      setPadding(64, 48, 64, 48)
+              override fun onCreate(s: Bundle?) {
+                  super.onCreate(s)
+                  val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(bgDark); setPadding(64, 48, 64, 48) }
+                  val top = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+                  val vpn = tile("🛡 ВКЛЮЧИТЬ VPN (INCY)", true) { openApp("llc.itdev.incy") }.apply { layoutParams = LinearLayout.LayoutParams(0, 130, 1f).apply { rightMargin = 24 } }
+                  val cfg = tile("⚙ Настройки", false) { startActivity(Intent(Settings.ACTION_SETTINGS)) }.apply { layoutParams = LinearLayout.LayoutParams(320, 130).apply { rightMargin = 32 } }
+                  val clk = TextClock(this).apply { format24Hour = "HH:mm"; textSize = 36f; setTextColor(textMain) }
+                  top.addView(vpn); top.addView(cfg); top.addView(clk); root.addView(top)
+                  val grid = GridLayout(this).apply { columnCount = 3; layoutParams = LinearLayout.LayoutParams(-1, -2).apply { topMargin = 48 } }
+                  for ((t, p) in apps) {
+                      grid.addView(tile(t, false) { openApp(p) }.apply {
+                          layoutParams = GridLayout.LayoutParams().apply { width = 0; height = 200; columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f); setMargins(12, 12, 12, 12) }
+                      })
                   }
-
-                  val topBar = LinearLayout(this).apply {
-                      orientation = LinearLayout.HORIZONTAL
-                      gravity = Gravity.CENTER_VERTICAL
-                  }
-
-                  val vpnBtn = createTile("🛡 ВКЛЮЧИТЬ VPN (INCY)", isAccent = true) {
-                      launchPkg("llc.itdev.incy")
-                  }.apply {
-                      layoutParams = LinearLayout.LayoutParams(0, 130, 1f).apply { rightMargin = 24 }
-                  }
-
-                  val settingsBtn = createTile("⚙ Настройки", isAccent = false) {
-                      startActivity(Intent(Settings.ACTION_SETTINGS))
-                  }.apply {
-                      layoutParams = LinearLayout.LayoutParams(320, 130).apply { rightMargin = 32 }
-                  }
-
-                  val clock = TextClock(this).apply {
-                      format24Hour = "HH:mm"
-                      textSize = 36f
-                      setTextColor(textMain)
-                  }
-
-                  topBar.addView(vpnBtn)
-                  topBar.addView(settingsBtn)
-                  topBar.addView(clock)
-                  root.addView(topBar)
-
-                  val grid = GridLayout(this).apply {
-                      columnCount = 3
-                      layoutParams = LinearLayout.LayoutParams(
-                          LinearLayout.LayoutParams.MATCH_PARENT,
-                          LinearLayout.LayoutParams.WRAP_CONTENT
-                      ).apply { topMargin = 48 }
-                  }
-
-                  for (app in myApps) {
-                      val tile = createTile(app.title, isAccent = false) {
-                          launchPkg(app.pkg)
-                      }.apply {
-                          layoutParams = GridLayout.LayoutParams().apply {
-                              width = 0
-                              height = 200
-                              columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f)
-                              setMargins(12, 12, 12, 12)
-                          }
-                      }
-                      grid.addView(tile)
-                  }
-
-                  root.addView(grid)
-                  setContentView(root)
-                  vpnBtn.requestFocus()
+                  root.addView(grid); setContentView(root); vpn.requestFocus()
               }
-
-              private fun createTile(label: String, isAccent: Boolean, onClick: () -> Unit): TextView {
-                  return TextView(this).apply {
-                      text = label
-                      textSize = if (isAccent) 22f else 24f
-                      setTextColor(textMain)
-                      gravity = Gravity.CENTER
-                      isFocusable = true
-                      isFocusableInTouchMode = true
-                      background = makeBg(false, isAccent)
-
-                      setOnFocusChangeListener { v, hasFocus ->
-                          v.background = makeBg(hasFocus, isAccent)
-                          v.animate().scaleX(if (hasFocus) 1.04f else 1f)
-                              .scaleY(if (hasFocus) 1.04f else 1f).setDuration(120).start()
-                      }
-                      setOnClickListener { onClick() }
-                  }
+              private fun tile(lbl: String, acc: Boolean, click: () -> Unit) = TextView(this).apply {
+                  text = lbl; textSize = if (acc) 22f else 24f; setTextColor(textMain); gravity = Gravity.CENTER; isFocusable = true; background = bg(false, acc)
+                  setOnFocusChangeListener { v, f -> v.background = bg(f, acc); v.animate().scaleX(if (f) 1.04f else 1f).scaleY(if (f) 1.04f else 1f).setDuration(120).start() }
+                  setOnClickListener { click() }
               }
-
-              private fun makeBg(focused: Boolean, isAccent: Boolean): GradientDrawable {
-                  return GradientDrawable().apply {
-                      cornerRadius = 24f
-                      setColor(
-                          when {
-                              focused -> cardFocused
-                              isAccent -> Color.parseColor("#3B3354")
-                              else -> cardGray
-                          }
-                      )
-                      setStroke(if (focused) 5 else 2, if (focused || isAccent) accentPurple else Color.parseColor("#3F3D4D"))
-                  }
+              private fun bg(f: Boolean, acc: Boolean) = GradientDrawable().apply {
+                  cornerRadius = 24f
+                  setColor(if (f) cardFocused else if (acc) Color.parseColor("#3B3354") else cardGray)
+                  setStroke(if (f) 5 else 2, if (f || acc) accentPurple else Color.parseColor("#3F3D4D"))
               }
-
-              private fun launchPkg(pkg: String) {
-                  val intent = packageManager.getLeanbackLaunchIntentForPackage(pkg)
-                      ?: packageManager.getLaunchIntentForPackage(pkg)
-                  if (intent != null) {
-                      startActivity(intent)
-                  } else {
-                      Toast.makeText(this, "Приложение не найдено: $pkg", Toast.LENGTH_SHORT).show()
-                  }
+              private fun openApp(p: String) {
+                  val i = packageManager.getLeanbackLaunchIntentForPackage(p) ?: packageManager.getLaunchIntentForPackage(p)
+                  if (i != null) startActivity(i) else Toast.makeText(this, "Не найдено: $p", Toast.LENGTH_SHORT).show()
               }
-
-              @Deprecated("Deprecated in Java")
-              override fun onBackPressed() { }
+              override fun onBackPressed() {}
           }
           EOF
 
@@ -276,4 +127,3 @@ jobs:
           name: PurpleTVLauncher
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
-
