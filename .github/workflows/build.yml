@@ -14,8 +14,13 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.5'
+
+      - name: Accept Android SDK Licenses
+        run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
 
       - name: Generate Project Files
         run: |
@@ -248,5 +253,3 @@ jobs:
               }
 
               private fun launchPkg(pkg: String) {
-                  val intent = packageManager.getLeanbackLaunchIntentForPackage(pkg)
-                      ?: packageManager.getLaunchIntentForPackage(pkg)
