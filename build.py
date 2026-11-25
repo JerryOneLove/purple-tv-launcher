@@ -23,7 +23,7 @@ open("gradle.properties", "w").write(
 
 open("app/build.gradle", "w").write(
     f'plugins {{ id "com.{a}.application"; id "org.jetbrains.kotlin.{a}" }}\n'
-    f'{a} {{ {n}space "com.my.purplelauncher"; compileSdk 34; defaultConfig {{ applicationId "com.my.purplelauncher"; minSdk 21; targetSdk 34; versionCode 4; versionName "4.0" }}; compileOptions {{ sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }}; kotlinOptions {{ jvmTarget = "17" }} }}\n'
+    f'{a} {{ {n}space "com.my.purplelauncher"; compileSdk 34; defaultConfig {{ applicationId "com.my.purplelauncher"; minSdk 21; targetSdk 34; versionCode 5; versionName "5.0" }}; compileOptions {{ sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }}; kotlinOptions {{ jvmTarget = "17" }} }}\n'
     'dependencies { implementation "androidx.appcompat:appcompat:1.6.1" }\n'
 )
 
@@ -168,7 +168,7 @@ class MainActivity : AppCompatActivity() {{
 
         uiOverlay = RelativeLayout(this).apply {{
             layoutParams = FrameLayout.LayoutParams(-1, -1)
-            setPadding(48, 32, 48, 24)
+            setPadding(40, 32, 40, 20)
         }}
 
         val clock = TextClock(this).apply {{
@@ -207,8 +207,9 @@ class MainActivity : AppCompatActivity() {{
 
         val bottomScroll = HorizontalScrollView(this).apply {{
             isHorizontalScrollBarEnabled = false
+            isFillViewport = true
             clipToPadding = false
-            setPadding(8, 16, 8, 6)
+            setPadding(4, 16, 4, 4)
             layoutParams = RelativeLayout.LayoutParams(-1, -2).apply {{
                 addRule(RelativeLayout.ALIGN_PARENT_BOTTOM)
             }}
@@ -216,7 +217,8 @@ class MainActivity : AppCompatActivity() {{
 
         dock = LinearLayout(this).apply {{
             orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            layoutParams = FrameLayout.LayoutParams(-1, -2)
         }}
 
         rebuildDock()
@@ -250,9 +252,9 @@ class MainActivity : AppCompatActivity() {{
                 if (pkg.isNotEmpty() && isInstalled(pkg)) {{
                     val label = try {{
                         packageManager.getApplicationLabel(packageManager.getApplicationInfo(pkg, 0)).toString()
-                    }} catch (e: Exception) {{ pkg }}
-                    result.add(AppSlot(label, arrayOf(pkg), true))
-                }}
+}} catch (e: Exception) {{ pkg }}
+result.add(AppSlot(label, arrayOf(pkg), true))
+}}
 }}
 }}
 return result
@@ -272,7 +274,7 @@ firstTile.post {{ firstTile.requestFocus() }}
 }}
 private fun hideOrRemoveSlot(slot: AppSlot) {{
 if (slot.isCustom) {{
-val current = (prefs.getString("custom_pkgs", "") ?: "").split("|").filter {{ it.isNotEmpty() && it != slot.packages[0] }}
+val current = (prefs.getString("custom_pkgs", "") ?: "").split("|").filter {{ it.isNotEmpty() && it != slot.packages }}
 prefs.edit().putString("custom_pkgs", current.joinToString("|")).apply()
 }} else {{
 val hidden = HashSet{lt}String{gt}(prefs.getStringSet("hidden_titles", emptySet()) ?: emptySet())
@@ -356,13 +358,14 @@ orientation = LinearLayout.VERTICAL
 gravity = Gravity.CENTER
 isFocusable = true
 isLongClickable = true
+minimumWidth = 136
 setPadding(12, 12, 12, 10)
-layoutParams = LinearLayout.LayoutParams(156, 132).apply {{ setMargins(10, 6, 10, 6) }}
+layoutParams = LinearLayout.LayoutParams(0, 132, 1.0f).apply {{ setMargins(8, 6, 8, 6) }}
 background = tileBg(false)
 }}
 val iconView = ImageView(this).apply {{
 scaleType = ImageView.ScaleType.FIT_CENTER
-layoutParams = LinearLayout.LayoutParams(116, 68)
+layoutParams = LinearLayout.LayoutParams(112, 68)
 colorFilter = silverFilter
 }}
 val foundPkg = slot.packages.firstOrNull {{ isInstalled(it) }}
@@ -391,7 +394,7 @@ box.setOnFocusChangeListener {{ v, f -{gt}
 v.background = tileBg(f)
 iconView.colorFilter = if (f) focusTintFilter else silverFilter
 titleView.setTextColor(if (f) textLight else textSilver)
-v.animate().scaleX(if (f) 1.10f else 1f).scaleY(if (f) 1.10f else 1f).setDuration(120).start()
+v.animate().scaleX(if (f) 1.08f else 1f).scaleY(if (f) 1.08f else 1f).setDuration(120).start()
 }}
 box.setOnClickListener {{ launchFirstFound(slot.packages) }}
 box.setOnLongClickListener {{
@@ -410,7 +413,8 @@ val box = LinearLayout(this).apply {{
 orientation = LinearLayout.VERTICAL
 gravity = Gravity.CENTER
 isFocusable = true
-layoutParams = LinearLayout.LayoutParams(112, 132).apply {{ setMargins(10, 6, 10, 6) }}
+minimumWidth = 104
+layoutParams = LinearLayout.LayoutParams(0, 132, 0.75f).apply {{ setMargins(8, 6, 8, 6) }}
 background = tileBg(false)
 }}
 val plus = TextView(this).apply {{
@@ -432,7 +436,7 @@ box.setOnFocusChangeListener {{ v, f -{gt}
 v.background = tileBg(f)
 plus.setTextColor(if (f) neonPurple else textSilver)
 title.setTextColor(if (f) textLight else textSilver)
-v.animate().scaleX(if (f) 1.10f else 1f).scaleY(if (f) 1.10f else 1f).setDuration(120).start()
+v.animate().scaleX(if (f) 1.08f else 1f).scaleY(if (f) 1.08f else 1f).setDuration(120).start()
 }}
 box.setOnClickListener {{ onClick() }}
 return box
