@@ -21,15 +21,28 @@ open("gradle.properties", "w").write(
 
 open("app/build.gradle", "w").write(
     f'plugins {{ id "com.{a}.application"; id "org.jetbrains.kotlin.{a}" }}\n'
-    f'{a} {{ {n}space "com.my.purplelauncher"; compileSdk 34; defaultConfig {{ applicationId "com.my.purplelauncher"; minSdk 21; targetSdk 34; versionCode 1; versionName "1.0" }}; compileOptions {{ sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }}; kotlinOptions {{ jvmTarget = "17" }} }}\n'
+    f'{a} {{ {n}space "com.my.purplelauncher"; compileSdk 34; defaultConfig {{ applicationId "com.my.purplelauncher"; minSdk 21; targetSdk 34; versionCode 3; versionName "3.0" }}; compileOptions {{ sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }}; kotlinOptions {{ jvmTarget = "17" }} }}\n'
     'dependencies { implementation "androidx.appcompat:appcompat:1.6.1" }\n'
 )
 
-pkgs = ["llc.itdev.incy", "com.google.android.youtube.tv", "ru.kinopoisk.tv", "com.vk.tv", "ru.rutube.app", "tv.okko.androidtv", "com.yandex.browser.tv"]
+pkgs = [
+    "llc.itdev.incy",
+    "com.google.android.youtube.tv",
+    "ru.kinopoisk.tv",
+    "com.vk.tv",
+    "ru.rutube.app",
+    "tv.okko.androidtv",
+    "ru.rt.video.app.tv",
+    "ru.wink.androidtv",
+    "com.yandex.browser.tv"
+]
 q_xml = "\n".join([f'        <package {a}{c}{n}="{p}" />' for p in pkgs])
 
 manifest = f"""<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns{c}{a}="http://schemas.{a}.com/apk/res/{a}">
+    <uses-permission {a}{c}{n}="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission {a}{c}{n}="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission {a}{c}{n}="android.permission.QUERY_ALL_PACKAGES" />
     <queries>
 {q_xml}
     </queries>
@@ -48,60 +61,378 @@ manifest = f"""<?xml version="1.0" encoding="utf-8"?>
 open("app/src/main/AndroidManifest.xml", "w").write(manifest)
 
 kt = """package com.my.purplelauncher
+
+import android.Manifest
+import android.app.AlertDialog
 import android.content.Intent
+import android.content.pm.ApplicationInfo
+import android.content.pm.PackageManager
+import android.graphics.BitmapFactory
 import android.graphics.Color
+import android.graphics.ColorMatrix
+import android.graphics.ColorMatrixColorFilter
+import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.GradientDrawable
+import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import android.view.Gravity
-import android.widget.*
+import android.view.KeyEvent
+import android.view.View
+import android.view.WindowManager
+import android.widget.FrameLayout
+import android.widget.HorizontalScrollView
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.RelativeLayout
+import android.widget.TextClock
+import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import java.io.File
 
 class MainActivity : AppCompatActivity() {
-    private val bgDark = Color.parseColor("#1C1B22")
-    private val cardGray = Color.parseColor("#2B2936")
-    private val cardFocused = Color.parseColor("#453E5C")
-    private val accentPurple = Color.parseColor("#A799FF")
-    private val textMain = Color.parseColor("#EAE6F5")
-    private val apps = listOf(
-        "YouTube" to "com.google.android.youtube.tv",
-        "Кинопоиск" to "ru.kinopoisk.tv",
-        "VK Видео" to "com.vk.tv",
-        "Rutube" to "ru.rutube.app",
-        "Okko" to "tv.okko.androidtv",
-        "Браузер" to "com.yandex.browser.tv"
+
+    private val neonPurple = Color.parseColor("#C57BFF")
+    private val idleGlass = Color.parseColor("#781A1826")
+    private val focusGlass = Color.parseColor("#B52D2245")
+    private val textLight = Color.parseColor("#F2EEFF")
+    private val textSilver = Color.parseColor("#B8B4C7")
+
+    private lateinit var uiOverlay: RelativeLayout
+    private lateinit var bgView: ImageView
+    private val idleHandler = Handler(Looper.getMainLooper())
+    private var isScreensaver = false
+    private val idleTimeoutMs = 20L * 60L * 1000L
+
+    private val silverFilter by lazy {
+        val cm = ColorMatrix().apply { setSaturation(0.08f) }
+        val contrast = ColorMatrix(floatArrayOf(
+            1.15f, 0f, 0f, 0f, 12f,
+            0f, 1.15f, 0f, 0f, 12f,
+            0f, 0f, 1.22f, 0f, 18f,
+            0f, 0f, 0f, 1f, 0f
+        ))
+        cm.postConcat(contrast)
+        ColorMatrixColorFilter(cm)
+    }
+
+    private val focusTintFilter by lazy {
+        val cm = ColorMatrix().apply { setSaturation(0.45f) }
+        val violetBoost = ColorMatrix(floatArrayOf(
+            1.08f, 0f, 0f, 0f, 10f,
+            0f, 1.00f, 0f, 0f, 4f,
+            0f, 0f, 1.25f, 0f, 22f,
+            0f, 0f, 0f, 1f, 0f
+        ))
+        cm.postConcat(violetBoost)
+        ColorMatrixColorFilter(cm)
+    }
+
+    private val idleRunnable = Runnable {
+        isScreensaver = true
+        uiOverlay.animate().alpha(0f).setDuration(800).start()
+    }
+
+    data class AppSlot(val title: String, val packages: List<String>)
+
+    private val mainApps = listOf(
+        AppSlot("YouTube", listOf("com.google.android.youtube.tv")),
+        AppSlot("Кинопоиск", listOf("ru.kinopoisk.tv")),
+        AppSlot("VK Видео", listOf("com.vk.tv")),
+        AppSlot("Wink", listOf("ru.rt.video.app.tv", "ru.wink.androidtv", "ru.rt.wink")),
+        AppSlot("Rutube", listOf("ru.rutube.app")),
+        AppSlot("Okko", listOf("tv.okko.androidtv")),
+        AppSlot("Браузер", listOf("com.yandex.browser.tv"))
     )
-    override fun onCreate(s: Bundle?) {
-        super.onCreate(s)
-        val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(bgDark); setPadding(64, 48, 64, 48) }
-        val top = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-        val vpn = tile("VPN (INCY)", true) { openApp("llc.itdev.incy") }.apply { layoutParams = LinearLayout.LayoutParams(0, 130, 1f).apply { rightMargin = 24 } }
-        val cfg = tile("Настройки", false) { startActivity(Intent(Settings.ACTION_SETTINGS)) }.apply { layoutParams = LinearLayout.LayoutParams(320, 130).apply { rightMargin = 32 } }
-        val clk = TextClock(this).apply { format24Hour = "HH:mm"; textSize = 36f; setTextColor(textMain) }
-        top.addView(vpn); top.addView(cfg); top.addView(clk); root.addView(top)
-        val grid = GridLayout(this).apply { columnCount = 3; layoutParams = LinearLayout.LayoutParams(-1, -2).apply { topMargin = 48 } }
-        for ((t, p) in apps) {
-            grid.addView(tile(t, false) { openApp(p) }.apply {
-                layoutParams = GridLayout.LayoutParams().apply { width = 0; height = 200; columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f); setMargins(12, 12, 12, 12) }
-            })
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+
+        val root = FrameLayout(this)
+        bgView = ImageView(this).apply {
+            scaleType = ImageView.ScaleType.CENTER_CROP
+            layoutParams = FrameLayout.LayoutParams(-1, -1)
         }
-        root.addView(grid); setContentView(root); vpn.requestFocus()
+        loadWallpaper(bgView)
+        root.addView(bgView)
+
+        uiOverlay = RelativeLayout(this).apply {
+            layoutParams = FrameLayout.LayoutParams(-1, -1)
+            setPadding(48, 32, 48, 24)
+        }
+
+        val clock = TextClock(this).apply {
+            format24Hour = "HH:mm"
+            textSize = 40f
+            setTextColor(textLight)
+            layoutParams = RelativeLayout.LayoutParams(-2, -2).apply {
+                addRule(RelativeLayout.CENTER_HORIZONTAL)
+                topMargin = 16
+            }
+        }
+        uiOverlay.addView(clock)
+
+        val topRight = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            layoutParams = RelativeLayout.LayoutParams(-2, -2).apply {
+                addRule(RelativeLayout.ALIGN_PARENT_END)
+                addRule(RelativeLayout.ALIGN_PARENT_TOP)
+            }
+        }
+
+        val vpnBtn = createRoundBtn("VPN", true) { launchFirstFound(listOf("llc.itdev.incy")) }
+        val wifiBtn = createRoundBtn("Wi-Fi", false) { openSettingsSafe(Settings.ACTION_WIFI_SETTINGS) }
+        val cfgBtn = createRoundBtn("⚙", false) { openSettingsSafe(Settings.ACTION_SETTINGS) }
+        val sleepBtn = createRoundBtn("☾", false) {
+            isScreensaver = true
+            uiOverlay.animate().alpha(0f).setDuration(500).start()
+        }
+
+        topRight.addView(vpnBtn)
+        topRight.addView(wifiBtn)
+        topRight.addView(cfgBtn)
+        topRight.addView(sleepBtn)
+        uiOverlay.addView(topRight)
+
+        val bottomScroll = HorizontalScrollView(this).apply {
+            isHorizontalScrollBarEnabled = false
+            clipToPadding = false
+            setPadding(8, 16, 8, 6)
+            layoutParams = RelativeLayout.LayoutParams(-1, -2).apply {
+                addRule(RelativeLayout.ALIGN_PARENT_BOTTOM)
+            }
+        }
+
+        val dock = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_HORIZONTAL
+        }
+
+        var firstTile: View? = null
+        for (slot in mainApps) {
+            val tile = createAppTile(slot)
+            if (firstTile == null) firstTile = tile
+            dock.addView(tile)
+        }
+
+        val allAppsTile = createSpecialTile("Все") { showAllAppsDialog() }
+        dock.addView(allAppsTile)
+
+        bottomScroll.addView(dock)
+        uiOverlay.addView(bottomScroll)
+        root.addView(uiOverlay)
+        setContentView(root)
+
+        if (Build.VERSION.SDK_INT >= 23) {
+            val perm = if (Build.VERSION.SDK_INT >= 33) Manifest.permission.READ_MEDIA_IMAGES else Manifest.permission.READ_EXTERNAL_STORAGE
+            if (checkSelfPermission(perm) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(arrayOf(perm), 101)
+            }
+        }
+
+        firstTile?.post { firstTile.requestFocus() }
+        resetIdleTimer()
     }
-    private fun tile(lbl: String, acc: Boolean, click: () -> Unit) = TextView(this).apply {
-        text = lbl; textSize = if (acc) 22f else 24f; setTextColor(textMain); gravity = Gravity.CENTER; isFocusable = true; background = bg(false, acc)
-        setOnFocusChangeListener { v, f -> v.background = bg(f, acc); v.animate().scaleX(if (f) 1.04f else 1f).scaleY(if (f) 1.04f else 1f).setDuration(120).start() }
-        setOnClickListener { click() }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        loadWallpaper(bgView)
     }
-    private fun bg(f: Boolean, acc: Boolean) = GradientDrawable().apply {
-        cornerRadius = 24f
-        setColor(if (f) cardFocused else if (acc) Color.parseColor("#3B3354") else cardGray)
-        setStroke(if (f) 5 else 2, if (f || acc) accentPurple else Color.parseColor("#3F3D4D"))
-    }
-    private fun openApp(p: String) {
-        val i = packageManager.getLeanbackLaunchIntentForPackage(p) ?: packageManager.getLaunchIntentForPackage(p)
-        if (i != null) startActivity(i) else Toast.makeText(this, "Не найдено: $p", Toast.LENGTH_SHORT).show()
-    }
-    override fun onBackPressed() {}
+
+    private fun loadWallpaper(iv: ImageView) {
+        val candidates = listOf(
+            File("/sdcard/Download/bg.png"),
+            File("/sdcard/Download/bg.jpg"),
+            File("/storage/emulated/0/Download/bg.png"),
+            File("/storage/emulated/0/Download/bg.jpg")
+        )
+        for (f in candidates) {
+            if (f.exists() && f.canRead()) {
+                val bmp = BitmapFactory.decodeFile(f.absolutePath)
+                if (bmp != null) {
+                    iv.setImageDrawable(BitmapDrawable(resources, bmp))
+return
+}
+}
+}
+iv.setImageDrawable(GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(Color.parseColor("#181326"), Color.parseColor("#2E1D47"))))
+}
+private fun createRoundBtn(label: String, accent: Boolean, onClick: () -> Unit): TextView {
+return TextView(this).apply {
+text = label
+textSize = if (label.length > 2) 13f else 17f
+setTextColor(if (accent) textLight else textSilver)
+gravity = Gravity.CENTER
+isFocusable = true
+layoutParams = LinearLayout.LayoutParams(68, 68).apply { leftMargin = 14 }
+background = roundBg(false, accent)
+setOnFocusChangeListener { v, f ->
+v.background = roundBg(f, accent)
+(v as TextView).setTextColor(if (f || accent) textLight else textSilver)
+v.animate().scaleX(if (f) 1.12f else 1f).scaleY(if (f) 1.12f else 1f).setDuration(120).start()
+}
+setOnClickListener { onClick() }
+}
+}
+private fun roundBg(focused: Boolean, accent: Boolean) = GradientDrawable().apply {
+shape = GradientDrawable.OVAL
+setColor(if (focused) focusGlass else if (accent) Color.parseColor("#883C2866") else idleGlass)
+setStroke(if (focused) 5 else 2, if (focused || accent) neonPurple else Color.parseColor("#55A799FF"))
+}
+private fun createAppTile(slot: AppSlot): LinearLayout {
+val box = LinearLayout(this).apply {
+orientation = LinearLayout.VERTICAL
+gravity = Gravity.CENTER
+isFocusable = true
+setPadding(12, 12, 12, 10)
+layoutParams = LinearLayout.LayoutParams(156, 132).apply { setMargins(10, 6, 10, 6) }
+background = tileBg(false)
+}
+val iconView = ImageView(this).apply {
+scaleType = ImageView.ScaleType.FIT_CENTER
+layoutParams = LinearLayout.LayoutParams(116, 68)
+colorFilter = silverFilter
+}
+val foundPkg = slot.packages.firstOrNull { isInstalled(it) }
+if (foundPkg != null) {
+val drawable = try {
+packageManager.getApplicationBanner(foundPkg) ?: packageManager.getApplicationIcon(foundPkg)
+} catch (e: Exception) {
+null
+}
+if (drawable != null) iconView.setImageDrawable(drawable)
+} else {
+iconView.setImageResource(android.R.drawable.ic_menu_view)
+iconView.alpha = 0.55f
+}
+val titleView = TextView(this).apply {
+text = slot.title
+textSize = 13f
+setTextColor(textSilver)
+gravity = Gravity.CENTER
+maxLines = 1
+layoutParams = LinearLayout.LayoutParams(-1, -2).apply { topMargin = 6 }
+}
+box.addView(iconView)
+box.addView(titleView)
+box.setOnFocusChangeListener { v, f ->
+v.background = tileBg(f)
+iconView.colorFilter = if (f) focusTintFilter else silverFilter
+titleView.setTextColor(if (f) textLight else textSilver)
+v.animate().scaleX(if (f) 1.10f else 1f).scaleY(if (f) 1.10f else 1f).setDuration(120).start()
+}
+box.setOnClickListener { launchFirstFound(slot.packages) }
+return box
+}
+private fun createSpecialTile(label: String, onClick: () -> Unit): LinearLayout {
+val box = LinearLayout(this).apply {
+orientation = LinearLayout.VERTICAL
+gravity = Gravity.CENTER
+isFocusable = true
+layoutParams = LinearLayout.LayoutParams(112, 132).apply { setMargins(10, 6, 10, 6) }
+background = tileBg(false)
+}
+val plus = TextView(this).apply {
+text = "⋮⋮"
+textSize = 26f
+setTextColor(textSilver)
+gravity = Gravity.CENTER
+}
+val title = TextView(this).apply {
+text = label
+textSize = 13f
+setTextColor(textSilver)
+gravity = Gravity.CENTER
+layoutParams = LinearLayout.LayoutParams(-1, -2).apply { topMargin = 6 }
+}
+box.addView(plus)
+box.addView(title)
+box.setOnFocusChangeListener { v, f ->
+v.background = tileBg(f)
+plus.setTextColor(if (f) neonPurple else textSilver)
+title.setTextColor(if (f) textLight else textSilver)
+v.animate().scaleX(if (f) 1.10f else 1f).scaleY(if (f) 1.10f else 1f).setDuration(120).start()
+}
+box.setOnClickListener { onClick() }
+return box
+}
+private fun tileBg(focused: Boolean) = GradientDrawable().apply {
+cornerRadius = 20f
+setColor(if (focused) focusGlass else idleGlass)
+setStroke(if (focused) 5 else 1, if (focused) neonPurple else Color.parseColor("#38FFFFFF"))
+}
+private fun isInstalled(pkg: String): Boolean {
+return try {
+packageManager.getPackageInfo(pkg, 0)
+true
+} catch (e: Exception) {
+false
+}
+}
+private fun launchFirstFound(pkgs: List) {
+for (p in pkgs) {
+val intent = packageManager.getLeanbackLaunchIntentForPackage(p) ?: packageManager.getLaunchIntentForPackage(p)
+if (intent != null) {
+startActivity(intent)
+return
+}
+}
+Toast.makeText(this, "Приложение ещё не установлено", Toast.LENGTH_SHORT).show()
+}
+private fun openSettingsSafe(action: String) {
+try {
+startActivity(Intent(action))
+} catch (e: Exception) {
+startActivity(Intent(Settings.ACTION_SETTINGS))
+}
+}
+private fun showAllAppsDialog() {
+val rawList: List = packageManager.getInstalledApplications(0)
+val launchable = ArrayList()
+for (info in rawList) {
+if (packageManager.getLeanbackLaunchIntentForPackage(info.packageName) != null ||
+packageManager.getLaunchIntentForPackage(info.packageName) != null) {
+launchable.add(info)
+}
+}
+launchable.sortBy { packageManager.getApplicationLabel(it).toString() }
+val names = Array(launchable.size) { idx -> packageManager.getApplicationLabel(launchable[idx]).toString() }
+AlertDialog.Builder(this)
+.setTitle("Все приложения")
+.setItems(names) { _, idx -> launchFirstFound(listOf(launchable[idx].packageName)) }
+.show()
+}
+private fun resetIdleTimer() {
+idleHandler.removeCallbacks(idleRunnable)
+if (isScreensaver) {
+isScreensaver = false
+uiOverlay.animate().alpha(1f).setDuration(300).start()
+}
+idleHandler.postDelayed(idleRunnable, idleTimeoutMs)
+}
+override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+if (event.action == KeyEvent.ACTION_DOWN) {
+if (isScreensaver) {
+resetIdleTimer()
+return true
+}
+resetIdleTimer()
+}
+return super.dispatchKeyEvent(event)
+}
+override fun onResume() {
+super.onResume()
+resetIdleTimer()
+}
+@Suppress("DEPRECATION")
+override fun onBackPressed() {
+if (isScreensaver) resetIdleTimer()
+}
 }
 """
 open("app/src/main/java/com/my/purplelauncher/MainActivity.kt", "w").write(kt)
